@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getRegistrations } from '@/lib/mongodb';
 import { validateRegistration } from '@/lib/validate';
+import { isVerifiedToken } from '@/lib/otp';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,10 @@ export async function POST(request) {
   const consent = body.consent === true;
   const src = String(body.src || '').trim().replace(/[^\w.-]/g, '').slice(0, 60);
 
+  if (!errors.mobile && !(await isVerifiedToken(body.otpToken, mobile))) {
+    errors.mobile = 'Please verify this mobile number with the WhatsApp code.';
+  }
+
   if (Object.keys(errors).length) {
     return NextResponse.json({ errors }, { status: 422 });
   }
@@ -29,6 +34,7 @@ export async function POST(request) {
     const result = await col.insertOne({
       name,
       mobile: '+91 ' + mobile,
+      mobileVerified: true,
       email,
       interest,
       consentFollowup: consent,

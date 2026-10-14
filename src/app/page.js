@@ -34,7 +34,96 @@ export default function RegistrationPage() {
   const [doneId, setDoneId] = useState(null);
   const [doneName, setDoneName] = useState('');
   const [src, setSrc] = useState('');
+  // WhatsApp OTP
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpToken, setOtpToken] = useState('');
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpInfo, setOtpInfo] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [cooldown, setCooldown] = useState(0);
   const refs = { name: useRef(null), mobile: useRef(null), email: useRef(null), interest: useRef(null) };
+  const otpRef = useRef(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  function resetOtp() {
+    setOtpSent(false);
+    setOtpCode('');
+    setOtpToken('');
+    setOtpInfo('');
+    setOtpError('');
+  }
+
+  async function sendCode() {
+    const msg = validateField('mobile', mobile);
+    setTouched((prev) => ({ ...prev, mobile: true }));
+    if (msg) {
+      setErrors((prev) => ({ ...prev, mobile: msg }));
+      refs.mobile.current?.focus();
+      return;
+    }
+    setOtpBusy(true);
+    setOtpError('');
+    setOtpInfo('');
+    try {
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setOtpSent(true);
+        setOtpCode('');
+        setOtpInfo(`We’ve sent a 6-digit code on WhatsApp to +91 ${mobile}.`);
+        setCooldown(30);
+        setErrors((prev) => ({ ...prev, mobile: '' }));
+        setTimeout(() => otpRef.current?.focus(), 50);
+      } else if (data.errors?.mobile) {
+        setErrors((prev) => ({ ...prev, mobile: data.errors.mobile }));
+      } else {
+        setOtpError(data.error || 'We couldn’t send the code. Please try again.');
+        if (data.retryAfter) setCooldown(data.retryAfter);
+      }
+    } catch {
+      setOtpError('We couldn’t send the code. Please check the connection and try again.');
+    } finally {
+      setOtpBusy(false);
+    }
+  }
+
+  async function verifyCode(code = otpCode) {
+    if (!/^\d{6}$/.test(code)) {
+      setOtpError('Please enter the 6-digit code.');
+      return;
+    }
+    setOtpBusy(true);
+    setOtpError('');
+    try {
+      const res = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile, code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) {
+        setOtpToken(data.token);
+        setOtpInfo('');
+        setErrors((prev) => ({ ...prev, mobile: '' }));
+      } else {
+        setOtpError(data.error || 'That code isn’t right. Please try again.');
+      }
+    } catch {
+      setOtpError('We couldn’t check the code. Please check the connection and try again.');
+    } finally {
+      setOtpBusy(false);
+    }
+  }
 
   useEffect(() => {
     try {
@@ -63,7 +152,10 @@ export default function RegistrationPage() {
     let digits = raw.replace(/\D/g, '');
     // Handle pasted numbers such as "+91 98765 43210" or "098765 43210".
     if (digits.length > 10) digits = digits.replace(/^(?:91|0)/, '');
-    update('mobile', digits.slice(0, 10), setMobile);
+    digits = digits.slice(0, 10);
+    // A different number needs a fresh code.
+    if (digits !== mobile && (otpSent || otpToken)) resetOtp();
+    update('mobile', digits, setMobile);
   }
 
   function focusFirstError(errs) {
@@ -79,6 +171,11 @@ export default function RegistrationPage() {
     if (saving) return;
 
     const { errors: clientErrors } = validateRegistration({ name, mobile, email, interest });
+    if (!clientErrors.mobile && !otpToken) {
+      clientErrors.mobile = otpSent
+        ? 'Please enter the WhatsApp code and tap Verify.'
+        : 'Please verify your mobile number — tap “Send OTP”.';
+    }
     setTouched({ name: true, mobile: true, email: true, interest: true });
     if (Object.keys(clientErrors).length) {
       setErrors(clientErrors);
@@ -92,7 +189,7 @@ export default function RegistrationPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, mobile, email, interest, consent, src }),
+        body: JSON.stringify({ name, mobile, email, interest, consent, src, otpToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.id) {
@@ -100,6 +197,8 @@ export default function RegistrationPage() {
         setDoneName(name.trim().split(/\s+/)[0]);
         window.scrollTo({ top: 0 });
       } else if (res.status === 422 && data.errors) {
+        // Verification expired (30 min) — ask for a fresh code.
+        if (data.errors.mobile) resetOtp();
         setErrors(data.errors);
         focusFirstError(data.errors);
       } else {
@@ -130,6 +229,8 @@ export default function RegistrationPage() {
     setConsent(false);
     setErrors({});
     setTouched({});
+    resetOtp();
+    setCooldown(0);
     setDoneId(null);
     setDoneName('');
     window.scrollTo({ top: 0 });
@@ -208,13 +309,61 @@ export default function RegistrationPage() {
                     ref={refs.mobile}
                     id="mobile" type="tel" inputMode="numeric" required
                     autoComplete="tel-national" placeholder="10-digit mobile"
-                    className={`input flex-1 ${invalid('mobile')}`} value={mobile}
+                    className={`input min-w-0 flex-1 ${invalid('mobile')}`} value={mobile}
                     onChange={(e) => onMobileChange(e.target.value)}
                     onBlur={(e) => blur('mobile', e.target.value)}
                     {...aria('mobile')}
                   />
+                  {otpToken ? (
+                    <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-sage/15 px-3 text-sm font-medium text-sage">
+                      &#10003; Verified
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={sendCode}
+                      disabled={otpBusy || cooldown > 0}
+                      className="whitespace-nowrap rounded-lg border border-navy px-3 text-xs font-medium uppercase tracking-wider text-navy transition hover:bg-navy hover:text-paper disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-navy"
+                    >
+                      {otpSent ? (cooldown > 0 ? `Resend ${cooldown}s` : 'Resend') : otpBusy ? 'Sending…' : 'Send OTP'}
+                    </button>
+                  )}
                 </div>
                 <FieldError id="mobile-error" msg={errors.mobile} />
+
+                {otpSent && !otpToken && (
+                  <div className="mt-1 flex flex-col gap-1.5 rounded-xl bg-mist p-3.5">
+                    {otpInfo && <p className="text-[13.5px] text-ink-soft">{otpInfo}</p>}
+                    <label className="flabel" htmlFor="otp">WhatsApp code</label>
+                    <div className="flex gap-2">
+                      <input
+                        ref={otpRef}
+                        id="otp" type="text" inputMode="numeric" autoComplete="one-time-code"
+                        placeholder="6-digit code" maxLength={6}
+                        className={`input min-w-0 flex-1 tracking-[0.3em] ${otpError ? 'input-error' : ''}`}
+                        value={otpCode}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setOtpCode(v);
+                          setOtpError('');
+                          if (v.length === 6) verifyCode(v);
+                        }}
+                        aria-invalid={otpError ? true : undefined}
+                        aria-describedby={otpError ? 'otp-error' : undefined}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => verifyCode()}
+                        disabled={otpBusy || otpCode.length !== 6}
+                        className="btn-primary !px-5 !py-2 text-xs"
+                      >
+                        {otpBusy ? 'Checking…' : 'Verify'}
+                      </button>
+                    </div>
+                    <FieldError id="otp-error" msg={otpError} />
+                  </div>
+                )}
+                {!otpSent && otpError && <FieldError id="otp-error" msg={otpError} />}
               </div>
 
               <div className="flex flex-col gap-1.5">

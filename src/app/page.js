@@ -44,6 +44,7 @@ export default function RegistrationPage() {
   const [cooldown, setCooldown] = useState(0);
   const refs = { name: useRef(null), mobile: useRef(null), email: useRef(null), interest: useRef(null) };
   const otpRef = useRef(null);
+  const lastSentRef = useRef('');
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -59,8 +60,19 @@ export default function RegistrationPage() {
     setOtpError('');
   }
 
-  async function sendCode() {
-    const msg = validateField('mobile', mobile);
+  // Fires as soon as a valid 10-digit number is typed — no button press needed.
+  function autoSend(number) {
+    if (lastSentRef.current === number && cooldown > 0) {
+      // Same number re-typed within the cooldown: the earlier code is still valid.
+      setOtpSent(true);
+      setOtpInfo(`We’ve already sent a code on WhatsApp to +91 ${number}.`);
+      return;
+    }
+    sendCode(number);
+  }
+
+  async function sendCode(number = mobile) {
+    const msg = validateField('mobile', number);
     setTouched((prev) => ({ ...prev, mobile: true }));
     if (msg) {
       setErrors((prev) => ({ ...prev, mobile: msg }));
@@ -74,13 +86,14 @@ export default function RegistrationPage() {
       const res = await fetch('/api/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile }),
+        body: JSON.stringify({ mobile: number }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setOtpSent(true);
         setOtpCode('');
-        setOtpInfo(`We’ve sent a 6-digit code on WhatsApp to +91 ${mobile}.`);
+        lastSentRef.current = number;
+        setOtpInfo(`We’ve sent a 6-digit code on WhatsApp to +91 ${number}.`);
         setCooldown(30);
         setErrors((prev) => ({ ...prev, mobile: '' }));
         setTimeout(() => otpRef.current?.focus(), 50);
@@ -156,6 +169,10 @@ export default function RegistrationPage() {
     // A different number needs a fresh code.
     if (digits !== mobile && (otpSent || otpToken)) resetOtp();
     update('mobile', digits, setMobile);
+    if (digits !== mobile && digits.length === 10 && !validateField('mobile', digits)) {
+      setErrors((prev) => ({ ...prev, mobile: '' }));
+      autoSend(digits);
+    }
   }
 
   function focusFirstError(errs) {
@@ -174,7 +191,7 @@ export default function RegistrationPage() {
     if (!clientErrors.mobile && !otpToken) {
       clientErrors.mobile = otpSent
         ? 'Please enter the WhatsApp code and tap Verify.'
-        : 'Please verify your mobile number — tap “Send OTP”.';
+        : 'Please verify your mobile number with the WhatsApp code.';
     }
     setTouched({ name: true, mobile: true, email: true, interest: true });
     if (Object.keys(clientErrors).length) {
@@ -318,18 +335,26 @@ export default function RegistrationPage() {
                     <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-sage/15 px-3 text-sm font-medium text-sage">
                       &#10003; Verified
                     </span>
-                  ) : (
+                  ) : otpBusy && !otpSent ? (
+                    <span className="flex items-center whitespace-nowrap px-2 text-xs uppercase tracking-wider text-ink-soft">
+                      Sending…
+                    </span>
+                  ) : otpSent || otpError ? (
+                    // Only shown after the automatic send — to resend, or retry if it failed.
                     <button
                       type="button"
-                      onClick={sendCode}
+                      onClick={() => sendCode()}
                       disabled={otpBusy || cooldown > 0}
                       className="whitespace-nowrap rounded-lg border border-navy px-3 text-xs font-medium uppercase tracking-wider text-navy transition hover:bg-navy hover:text-paper disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-navy"
                     >
-                      {otpSent ? (cooldown > 0 ? `Resend ${cooldown}s` : 'Resend') : otpBusy ? 'Sending…' : 'Send OTP'}
+                      {cooldown > 0 ? `Resend ${cooldown}s` : otpSent ? 'Resend' : 'Retry'}
                     </button>
-                  )}
+                  ) : null}
                 </div>
                 <FieldError id="mobile-error" msg={errors.mobile} />
+                {!otpSent && !otpToken && !otpBusy && !otpError && !errors.mobile && (
+                  <p className="text-[12.5px] text-ink-faint">We&rsquo;ll send a verification code to this number on WhatsApp.</p>
+                )}
 
                 {otpSent && !otpToken && (
                   <div className="mt-1 flex flex-col gap-1.5 rounded-xl bg-mist p-3.5">

@@ -113,7 +113,7 @@ export async function checkOtp(mobile, code) {
   const row = await col.findOne({ mobile, used: false }, { sort: { createdAt: -1 } });
 
   if (!row) {
-    return { ok: false, status: 410, error: 'Please tap “Send OTP” to get a code first.' };
+    return { ok: false, status: 410, error: 'Please request a code first.' };
   }
   if (row.validUntil.getTime() < Date.now()) {
     return { ok: false, status: 410, error: 'That code has expired. Please request a new one.' };

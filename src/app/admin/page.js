@@ -69,8 +69,15 @@ export default function AdminDashboard() {
       <header className="bg-navy text-paper">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-5">
           <div>
-            <p className="font-display text-2xl font-medium tracking-[0.18em] [text-indent:0.18em]">AMAYA</p>
-            <p className="text-[10px] uppercase tracking-[0.26em] text-limestone">Exhibition dashboard</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/Amaya_black_Logo.webp"
+              alt="Amaya Senior Living"
+              width={3925}
+              height={1973}
+              className="h-auto w-28 brightness-0 invert"
+            />
+            <p className="mt-1.5 text-[10px] uppercase tracking-[0.26em] text-limestone">Exhibition dashboard</p>
           </div>
           <div className="flex items-center gap-3">
             <a href="/" className="text-sm text-limestone underline">Registration form</a>

@@ -38,9 +38,16 @@ export default function AdminLoginPage() {
     <main className="flex min-h-screen flex-col bg-navy">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
         <div className="mb-8 text-center text-paper">
-          <p className="font-display text-4xl font-medium tracking-[0.22em] [text-indent:0.22em]">AMAYA</p>
-          <p className="mt-2 text-[11px] uppercase tracking-[0.28em] text-limestone">
-            Senior Living &middot; by Vera Vita
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/Amaya_black_Logo.webp"
+            alt="Amaya Senior Living"
+            width={3925}
+            height={1973}
+            className="mx-auto h-auto w-44 brightness-0 invert"
+          />
+          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-limestone">
+            by Vera Vita
           </p>
         </div>
 

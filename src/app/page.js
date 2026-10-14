@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { INTERESTS, LIMITS, validateField, validateRegistration } from '@/lib/validate';
+import { INTERESTS, LIMITS, normalise, suggestEmail, validateField, validateRegistration } from '@/lib/validate';
 
 const BROCHURE_PATH = '/brochure/Amaya-eBrochure.pdf';
 const FIELD_ORDER = ['name', 'mobile', 'email', 'interest'];
@@ -135,6 +135,7 @@ export default function RegistrationPage() {
     window.scrollTo({ top: 0 });
   }
 
+  const emailSuggestion = errors.email ? suggestEmail(normalise({ email }).email) : '';
   const invalid = (f) => (errors[f] ? 'input-error' : '');
   const aria = (f) => ({
     'aria-invalid': errors[f] ? true : undefined,
@@ -228,6 +229,18 @@ export default function RegistrationPage() {
                   {...aria('email')}
                 />
                 <FieldError id="email-error" msg={errors.email} />
+                {emailSuggestion && (
+                  <button
+                    type="button"
+                    className="self-start text-[13.5px] font-medium text-navy underline"
+                    onClick={() => {
+                      setEmail(emailSuggestion);
+                      setErrors((prev) => ({ ...prev, email: '' }));
+                    }}
+                  >
+                    Use {emailSuggestion}
+                  </button>
+                )}
               </div>
 
               <fieldset className="flex flex-col gap-1.5" {...aria('interest')}>

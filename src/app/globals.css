@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-mist text-ink font-body antialiased;
+  }
+}
+
+@layer components {
+  .input {
+    @apply w-full rounded-lg border border-stone bg-paper px-4 py-3 text-base text-ink outline-none transition focus:border-navy focus:ring-2 focus:ring-brass/40;
+  }
+  .flabel {
+    @apply text-xs font-medium uppercase tracking-[0.12em] text-navy;
+  }
+  .btn-primary {
+    @apply rounded-full bg-navy px-7 py-3.5 text-sm font-medium uppercase tracking-[0.1em] text-paper transition hover:bg-navy-deep disabled:cursor-default disabled:opacity-55;
+  }
+  .btn-brass {
+    @apply inline-block rounded-full bg-brass px-6 py-3 text-sm font-medium uppercase tracking-[0.1em] text-paper transition hover:opacity-90;
+  }
+  .card {
+    @apply rounded-2xl border border-stone bg-paper;
+  }
+}

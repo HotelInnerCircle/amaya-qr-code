@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { INTERESTS, LIMITS, validateField, validateRegistration } from '@/lib/validate';
 
-const INTERESTS = ['1 BHK', '2 BHK', '2.5 BHK', '3 BHK', '3.5 BHK', 'Exploring'];
 const BROCHURE_PATH = '/brochure/Amaya-eBrochure.pdf';
+const FIELD_ORDER = ['name', 'mobile', 'email', 'interest'];
 
 const FACTS = [
   '256 thoughtfully designed homes',
@@ -12,6 +13,15 @@ const FACTS = [
   'Medchal, Hyderabad',
 ];
 
+function FieldError({ id, msg }) {
+  if (!msg) return null;
+  return (
+    <p id={id} role="alert" className="text-[13.5px] text-red-800">
+      {msg}
+    </p>
+  );
+}
+
 export default function RegistrationPage() {
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
@@ -19,10 +29,12 @@ export default function RegistrationPage() {
   const [interest, setInterest] = useState('');
   const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
   const [doneId, setDoneId] = useState(null);
   const [doneName, setDoneName] = useState('');
   const [src, setSrc] = useState('');
+  const refs = { name: useRef(null), mobile: useRef(null), email: useRef(null), interest: useRef(null) };
 
   useEffect(() => {
     try {
@@ -33,8 +45,47 @@ export default function RegistrationPage() {
     }
   }, []);
 
+  // Re-check a field as the visitor types, but only once they've left it once
+  // (so we don't shout at them before they've finished typing).
+  function update(field, value, setter) {
+    setter(value);
+    if (touched[field] || errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
+    }
+  }
+
+  function blur(field, value) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
+  }
+
+  function onMobileChange(raw) {
+    let digits = raw.replace(/\D/g, '');
+    // Handle pasted numbers such as "+91 98765 43210" or "098765 43210".
+    if (digits.length > 10) digits = digits.replace(/^(?:91|0)/, '');
+    update('mobile', digits.slice(0, 10), setMobile);
+  }
+
+  function focusFirstError(errs) {
+    const first = FIELD_ORDER.find((f) => errs[f]);
+    if (first && refs[first].current) {
+      refs[first].current.focus();
+      refs[first].current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
   async function submit(e) {
     e.preventDefault();
+    if (saving) return;
+
+    const { errors: clientErrors } = validateRegistration({ name, mobile, email, interest });
+    setTouched({ name: true, mobile: true, email: true, interest: true });
+    if (Object.keys(clientErrors).length) {
+      setErrors(clientErrors);
+      focusFirstError(clientErrors);
+      return;
+    }
+
     setErrors({});
     setSaving(true);
     try {
@@ -50,6 +101,7 @@ export default function RegistrationPage() {
         window.scrollTo({ top: 0 });
       } else if (res.status === 422 && data.errors) {
         setErrors(data.errors);
+        focusFirstError(data.errors);
       } else {
         setErrors({ save: data.error || 'That didn’t save. Please check the connection and try once more.' });
       }
@@ -77,19 +129,35 @@ export default function RegistrationPage() {
     setInterest('');
     setConsent(false);
     setErrors({});
+    setTouched({});
     setDoneId(null);
     setDoneName('');
     window.scrollTo({ top: 0 });
   }
 
+  const invalid = (f) => (errors[f] ? 'input-error' : '');
+  const aria = (f) => ({
+    'aria-invalid': errors[f] ? true : undefined,
+    'aria-describedby': errors[f] ? `${f}-error` : undefined,
+  });
+
   return (
     <main className="min-h-screen">
       {/* Navy header band */}
       <header className="bg-navy text-paper">
-        <div className="mx-auto max-w-2xl px-4 py-9 text-center">
-          <p className="font-display text-5xl font-medium tracking-[0.22em] [text-indent:0.22em]">AMAYA</p>
-          <p className="mt-2 text-[11px] uppercase tracking-[0.28em] text-limestone">
-            Senior Living &middot; by Vera Vita
+        <div className="mx-auto max-w-2xl px-4 py-8 text-center">
+          <h1 className="m-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/Amaya_black_Logo.webp"
+              alt="Amaya Senior Living"
+              width={3925}
+              height={1973}
+              className="mx-auto h-auto w-48 brightness-0 invert sm:w-56"
+            />
+          </h1>
+          <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-limestone">
+            by Vera Vita
           </p>
         </div>
       </header>
@@ -109,62 +177,84 @@ export default function RegistrationPage() {
 
         {!doneId ? (
           <section className="card px-6 py-7">
-            <h1 className="font-display text-3xl font-semibold text-navy [text-wrap:balance]">
+            <h2 className="font-display text-3xl font-semibold text-navy [text-wrap:balance]">
               Welcome to Amaya
-            </h1>
+            </h2>
             <p className="mb-6 mt-1 text-[15px] text-ink-soft">
               Share your details and we&rsquo;ll have the e&#8209;brochure ready for you straight away.
             </p>
 
             <form onSubmit={submit} noValidate className="flex flex-col gap-5">
               <div className="flex flex-col gap-1.5">
-                <label className="flabel" htmlFor="name">Full name</label>
+                <label className="flabel" htmlFor="name">Full name <span className="text-red-800">*</span></label>
                 <input
+                  ref={refs.name}
                   id="name" type="text" autoComplete="name" placeholder="Your name"
-                  className="input" value={name} onChange={(e) => setName(e.target.value)}
+                  required maxLength={LIMITS.nameMax}
+                  className={`input ${invalid('name')}`} value={name}
+                  onChange={(e) => update('name', e.target.value, setName)}
+                  onBlur={(e) => blur('name', e.target.value)}
+                  {...aria('name')}
                 />
-                {errors.name && <p className="text-[13.5px] text-red-800">{errors.name}</p>}
+                <FieldError id="name-error" msg={errors.name} />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="flabel" htmlFor="mobile">Mobile number</label>
+                <label className="flabel" htmlFor="mobile">Mobile number <span className="text-red-800">*</span></label>
                 <div className="flex gap-2">
                   <span className="flex items-center rounded-lg border border-stone bg-mist px-3 text-ink-soft">+91</span>
                   <input
-                    id="mobile" type="tel" inputMode="numeric" maxLength={10}
+                    ref={refs.mobile}
+                    id="mobile" type="tel" inputMode="numeric" required
                     autoComplete="tel-national" placeholder="10-digit mobile"
-                    className="input flex-1" value={mobile}
-                    onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))}
+                    className={`input flex-1 ${invalid('mobile')}`} value={mobile}
+                    onChange={(e) => onMobileChange(e.target.value)}
+                    onBlur={(e) => blur('mobile', e.target.value)}
+                    {...aria('mobile')}
                   />
                 </div>
-                {errors.mobile && <p className="text-[13.5px] text-red-800">{errors.mobile}</p>}
+                <FieldError id="mobile-error" msg={errors.mobile} />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="flabel" htmlFor="email">Email</label>
+                <label className="flabel" htmlFor="email">Email <span className="text-red-800">*</span></label>
                 <input
+                  ref={refs.email}
                   id="email" type="email" autoComplete="email" placeholder="name@example.com"
-                  className="input" value={email} onChange={(e) => setEmail(e.target.value)}
+                  required maxLength={LIMITS.emailMax} autoCapitalize="none" spellCheck={false}
+                  className={`input ${invalid('email')}`} value={email}
+                  onChange={(e) => update('email', e.target.value.replace(/\s/g, ''), setEmail)}
+                  onBlur={(e) => blur('email', e.target.value)}
+                  {...aria('email')}
                 />
-                {errors.email && <p className="text-[13.5px] text-red-800">{errors.email}</p>}
+                <FieldError id="email-error" msg={errors.email} />
               </div>
 
-              <fieldset className="flex flex-col gap-1.5">
-                <legend className="flabel mb-1.5">I&rsquo;m interested in</legend>
+              <fieldset className="flex flex-col gap-1.5" {...aria('interest')}>
+                <legend className="flabel mb-1.5">I&rsquo;m interested in <span className="text-red-800">*</span></legend>
                 <div className="flex flex-wrap gap-2">
-                  {INTERESTS.map((v) => (
+                  {INTERESTS.map((v, i) => (
                     <label key={v} className="cursor-pointer">
                       <input
+                        ref={i === 0 ? refs.interest : undefined}
                         type="radio" name="interest" value={v} className="peer sr-only"
-                        checked={interest === v} onChange={() => setInterest(v)}
+                        checked={interest === v}
+                        onChange={() => {
+                          setInterest(v);
+                          setErrors((prev) => ({ ...prev, interest: '' }));
+                        }}
                       />
-                      <span className="inline-block rounded-full border border-stone bg-paper px-4 py-2 text-[14.5px] text-ink transition peer-checked:border-navy peer-checked:bg-navy peer-checked:text-paper peer-focus-visible:ring-2 peer-focus-visible:ring-brass">
+                      <span
+                        className={`inline-block rounded-full border bg-paper px-4 py-2 text-[14.5px] text-ink transition peer-checked:border-navy peer-checked:bg-navy peer-checked:text-paper peer-focus-visible:ring-2 peer-focus-visible:ring-brass ${
+                          errors.interest ? 'border-red-700' : 'border-stone'
+                        }`}
+                      >
                         {v === 'Exploring' ? 'Still exploring' : v}
                       </span>
                     </label>
                   ))}
                 </div>
-                {errors.interest && <p className="text-[13.5px] text-red-800">{errors.interest}</p>}
+                <FieldError id="interest-error" msg={errors.interest} />
               </fieldset>
 
               <label className="flex items-start gap-2.5 rounded-xl bg-mist p-3.5">
@@ -177,7 +267,7 @@ export default function RegistrationPage() {
                 </span>
               </label>
 
-              {errors.save && <p className="text-[13.5px] text-red-800">{errors.save}</p>}
+              {errors.save && <p role="alert" className="text-[13.5px] text-red-800">{errors.save}</p>}
 
               <button type="submit" className="btn-primary mt-1" disabled={saving}>
                 {saving ? 'Saving…' : 'Register'}

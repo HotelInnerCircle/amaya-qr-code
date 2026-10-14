@@ -12,6 +12,9 @@
   .input {
     @apply w-full rounded-lg border border-stone bg-paper px-4 py-3 text-base text-ink outline-none transition focus:border-navy focus:ring-2 focus:ring-brass/40;
   }
+  .input-error {
+    @apply border-red-700 bg-red-50/40 focus:border-red-700 focus:ring-red-700/25;
+  }
   .flabel {
     @apply text-xs font-medium uppercase tracking-[0.12em] text-navy;
   }

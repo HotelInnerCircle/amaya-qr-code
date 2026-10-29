@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { INTERESTS, LIMITS, normalise, suggestEmail, validateField, validateRegistration } from '@/lib/validate';
 
-const BROCHURE_PATH = '/brochure/Amaya-eBrochure.pdf';
 const FIELD_ORDER = ['name', 'mobile', 'email', 'interest'];
 
 // Shown after registration.
@@ -13,7 +12,6 @@ const CONNECT_OPTIONS = [
     title: 'Explore more about Amaya',
     sub: 'Chat with us on WhatsApp',
     href: 'https://api.whatsapp.com/send/?phone=919553395533&text=Hi%2C%20I%20want%20to%20know%20more%20about%20Amaya&type=phone_number&app_absent=0',
-    primary: true,
     external: true,
   },
   {
@@ -253,16 +251,6 @@ export default function RegistrationPage() {
     }
   }
 
-  function brochureClicked() {
-    if (doneId) {
-      fetch('/api/brochure-opened', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: doneId }),
-      }).catch(() => {});
-    }
-  }
-
   function registerAnother() {
     setName('');
     setMobile('');
@@ -482,7 +470,7 @@ export default function RegistrationPage() {
               {errors.save && <p role="alert" className="text-[13.5px] text-red-800">{errors.save}</p>}
 
               <button type="submit" className="btn-primary mt-1" disabled={saving}>
-                {saving ? 'Saving…' : 'Register'}
+                {saving ? 'Saving…' : 'Submit'}
               </button>
             </form>
           </section>
@@ -494,50 +482,31 @@ export default function RegistrationPage() {
             <h2 className="font-display text-[28px] font-semibold text-navy [text-wrap:balance]">
               Thank you, {doneName}.
             </h2>
-            <p className="mb-5 mt-2 text-[15px] text-ink-soft">
-              Your e-brochure is ready below. Do take your time with it.
-            </p>
-            <a
-              href={BROCHURE_PATH}
-              target="_blank"
-              rel="noopener"
-              className="btn-brass"
-              onClick={brochureClicked}
-            >
-              Download Brochure
-            </a>
-
-            <div className="mt-9 border-t border-stone pt-7 text-left">
-              <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-brass">Connect with us</p>
-              <h3 className="mt-2 font-display text-[28px] font-medium leading-tight text-navy">
-                How can we <em className="text-brass">help you today?</em>
-              </h3>
-              <ul className="mt-5 grid gap-3">
+            <div className="mt-6 text-left">
+              <ul className="grid gap-3">
                 {CONNECT_OPTIONS.map((o) => (
                   <li key={o.num}>
                     <a
                       href={o.href}
                       {...(o.external ? { target: '_blank', rel: 'noopener' } : {})}
-                      className={`flex min-h-[84px] items-center gap-4 border border-l-[3px] border-l-brass py-[18px] pl-4 pr-[18px] transition focus-visible:outline-none ${
-                        o.primary
-                          ? 'border-navy-deep bg-navy-deep'
-                          : 'border-stone bg-paper hover:border-brass focus-visible:border-brass active:bg-mist'
-                      }`}
+                      className="group flex min-h-[84px] items-center gap-4 border border-l-[3px] border-stone border-l-brass bg-paper py-[18px] pl-4 pr-[18px] transition hover:border-navy-deep hover:border-l-brass hover:bg-navy-deep focus-visible:border-navy-deep focus-visible:bg-navy-deep focus-visible:outline-none active:border-navy-deep active:bg-navy-deep"
                     >
                       <span className="w-[26px] flex-none text-center font-display text-[26px] italic leading-none text-brass">
                         {o.num}
                       </span>
                       <span className="flex-1">
-                        <strong className={`block text-[13px] font-medium uppercase tracking-[0.16em] ${o.primary ? 'text-paper' : 'text-navy'}`}>
+                        <strong className="block text-[13px] font-medium uppercase tracking-[0.16em] text-navy transition group-hover:text-paper group-focus-visible:text-paper group-active:text-paper">
                           {o.title}
                         </strong>
-                        <span className={`mt-0.5 block text-sm ${o.primary ? 'text-[#cfc4b7]' : 'text-ink-soft'}`}>{o.sub}</span>
+                        <span className="mt-0.5 block text-sm text-ink-soft transition group-hover:text-[#cfc4b7] group-focus-visible:text-[#cfc4b7] group-active:text-[#cfc4b7]">
+                          {o.sub}
+                        </span>
                       </span>
                       <span
-                        className={`grid h-9 w-9 flex-none place-items-center rounded-full ${o.primary ? 'bg-brass' : 'bg-navy-deep'}`}
+                        className="grid h-9 w-9 flex-none place-items-center rounded-full bg-navy-deep transition group-hover:bg-brass group-focus-visible:bg-brass group-active:bg-brass"
                         aria-hidden="true"
                       >
-                        <svg viewBox="0 0 16 16" className={`h-4 w-4 fill-none ${o.primary ? 'stroke-paper' : 'stroke-limestone'}`} strokeWidth="1.6">
+                        <svg viewBox="0 0 16 16" className="h-4 w-4 fill-none stroke-limestone transition group-hover:stroke-paper group-focus-visible:stroke-paper group-active:stroke-paper" strokeWidth="1.6">
                           <path d="M5 3l5 5-5 5" />
                         </svg>
                       </span>
@@ -545,9 +514,6 @@ export default function RegistrationPage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-5 text-center text-[13px] text-ink-soft">
-                Amaya Experience Centre, open Monday to Saturday, 10:00 to 18:00.
-              </p>
             </div>
 
             <button

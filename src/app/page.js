@@ -251,21 +251,6 @@ export default function RegistrationPage() {
     }
   }
 
-  function registerAnother() {
-    setName('');
-    setMobile('');
-    setEmail('');
-    setInterest('');
-    setConsent(false);
-    setErrors({});
-    setTouched({});
-    resetOtp();
-    setCooldown(0);
-    setDoneId(null);
-    setDoneName('');
-    window.scrollTo({ top: 0 });
-  }
-
   const emailSuggestion = errors.email ? suggestEmail(normalise({ email }).email) : '';
   const invalid = (f) => (errors[f] ? 'input-error' : '');
   const aria = (f) => ({
@@ -515,14 +500,6 @@ export default function RegistrationPage() {
                 ))}
               </ul>
             </div>
-
-            <button
-              type="button"
-              onClick={registerAnother}
-              className="mx-auto mt-5 block text-sm text-navy underline"
-            >
-              Register another visitor
-            </button>
           </section>
         )}
 
